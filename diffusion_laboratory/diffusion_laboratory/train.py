@@ -5,6 +5,7 @@ import numpy as np
 import shutil
 
 def train_model(config):
+    
     device = config.device
     diffusion_model = config.diffusion_model_instance
     dataset = config.dataset

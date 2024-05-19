@@ -32,14 +32,14 @@ from .diffusion_models import (
 
 from .networks import DiffusersUnet
 
-PROJECT_ROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),'..')
+PROJECT_ROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '..')
 WEIGHTS_DIR = os.path.join(PROJECT_ROOT, 'weights')
 FIGURES_DIR = os.path.join(PROJECT_ROOT, 'figures')
 ANIMATIONS_DIR = os.path.join(PROJECT_ROOT, 'animations')
 DATA_DIR = os.path.join(PROJECT_ROOT, '../../../data/')
 
 class Config:
-    def __init__(self, device, diffusion_model, imaging_modality, batch_size, num_epochs, learning_rate, warmup_steps, batches_per_epoch, num_iterations, num_reverse_steps, load, train, sample):
+    def __init__(self, device, diffusion_model, imaging_modality, batch_size, num_epochs, learning_rate, warmup_steps, batches_per_epoch, num_iterations, num_reverse_steps, animation_frames_downsample, load, train, sample):
         self.device = device
         self.diffusion_model = diffusion_model
         self.imaging_modality = imaging_modality
@@ -50,6 +50,7 @@ class Config:
         self.batches_per_epoch = batches_per_epoch
         self.num_iterations = num_iterations
         self.num_reverse_steps = num_reverse_steps
+        self.animation_frames_downsample = animation_frames_downsample
         self.load = load
         self.train = train
         self.sample = sample
@@ -63,17 +64,16 @@ class Config:
             mask_rfft2 = self.mean_response.mask_rfft2.repeat(1, 1, 256, 1)
             mask = torch.fft.irfft2(mask_rfft2, norm='ortho')
             mask = mask.permute(0, 1, 3, 2)
-            noise_kernel = 20000 * mask
+            noise_kernel = 0.3*0.3*mask
             self.noise_covariance = StationaryNoiseCovariance(noise_kernel, kernel=True)
-            print('Debug: self.device=', self.device)
             self.weights_path = os.path.join(WEIGHTS_DIR, f'{self.diffusion_model}_MRI.pth')
             self.figure_path = os.path.join(FIGURES_DIR, f'{self.diffusion_model}_MRI.png')
             self.animation_path = os.path.join(ANIMATIONS_DIR, f'{self.diffusion_model}_MRI.mp4')
             self.reverse_diffusion_path = os.path.join(FIGURES_DIR, f'reverse_diffusion_process_{self.diffusion_model}_MRI.png')
-            self.vmin, self.vmax = 0, 400
-            self.vmin_null, self.vmax_null = -200, 200
+            self.vmin, self.vmax = 0, 0.8  
+            self.vmin_null, self.vmax_null = -0.4, 0.4  
             self.dataset_max_train = 200 * 37
-            self.null_space_variance = 500000.0
+            self.null_space_variance = 2 
 
         elif self.imaging_modality == 'PET':
             self.dataset = ADNIPETSlice_Dataset(os.path.join(DATA_DIR, 'ADNI/ADNI/'), verbose=True)
@@ -104,32 +104,32 @@ class Config:
         elif self.imaging_modality == 'CT':
             self.dataset = SynthRad2023Task1CTSlice_Dataset(os.path.join(DATA_DIR, 'SynthRad2023/Task1/brain/'), verbose=True)
             self.dataset_max_train = 200 * 37
-            U = torch.tensor(np.load(os.path.join(WEIGHTS_DIR, 'U.npy')), dtype=torch.float32)
-            S = torch.tensor(np.load(os.path.join(WEIGHTS_DIR, 'S.npy')), dtype=torch.float32)
-            V = torch.tensor(np.load(os.path.join(WEIGHTS_DIR, 'V.npy')), dtype=torch.float32)
+            U = torch.tensor(np.load(os.path.join(WEIGHTS_DIR, 'U.npy')), dtype=torch.float32) / 1000  # Rescale by 1000
+            S = torch.tensor(np.load(os.path.join(WEIGHTS_DIR, 'S.npy')), dtype=torch.float32) / 1000  # Rescale by 1000
+            V = torch.tensor(np.load(os.path.join(WEIGHTS_DIR, 'V.npy')), dtype=torch.float32) / 1000  # Rescale by 1000
             xShape = [1, 256, 256]
             yShape = [72, 375]
             self.mean_response = DenseSVDMeanSystemResponse(U, S, V, xShape, yShape)
-            self.noise_covariance = ScalarNoiseCovariance(50000)
-            self.null_space_variance = 100000.0
+            self.noise_covariance = ScalarNoiseCovariance(50000 / 1000**2)  # Rescale by 1000^2
+            self.null_space_variance = 0.3*0.3  # Rescale by 1000^2
             self.weights_path = os.path.join(WEIGHTS_DIR, f'{self.diffusion_model}_CT.pth')
             self.figure_path = os.path.join(FIGURES_DIR, f'{self.diffusion_model}_CT.png')
             self.animation_path = os.path.join(ANIMATIONS_DIR, f'{self.diffusion_model}_CT.mp4')
             self.reverse_diffusion_path = os.path.join(FIGURES_DIR, f'reverse_diffusion_process_{self.diffusion_model}_CT.png')
-            self.vmin, self.vmax = -30, 90
-            self.vmin_null, self.vmax_null = -30, 90
+            self.vmin, self.vmax = -0.03, 0.09  # Rescale by 1000
+            self.vmin_null, self.vmax_null = -0.03, 0.09  # Rescale by 1000
 
         elif self.imaging_modality == 'SEM':
             self.dataset = SEM_Dataset(os.path.join(DATA_DIR, 'MICRONS'), verbose=True)
             self.dataset_max_train = 1000 * 20
             self.mean_response = IdentityMeanSystemResponse()
-            self.noise_covariance = ScalarNoiseCovariance(500)
-            self.null_space_variance = 10000.0
+            self.noise_covariance = ScalarNoiseCovariance(500 / 10**2)  # Rescale by 10^2
+            self.null_space_variance = 10000.0 / 10**2  # Rescale by 10^2
             self.weights_path = os.path.join(WEIGHTS_DIR, f'{self.diffusion_model}_SEM.pth')
             self.figure_path = os.path.join(FIGURES_DIR, f'{self.diffusion_model}_SEM.png')
             self.animation_path = os.path.join(ANIMATIONS_DIR, f'{self.diffusion_model}_SEM.mp4')
             self.reverse_diffusion_path = os.path.join(FIGURES_DIR, f'reverse_diffusion_process_{self.diffusion_model}_SEM.png')
-            self.vmin, self.vmax = 110, 150
+            self.vmin, self.vmax = .3, .9
             self.vmin_null, self.vmax_null = -1, 1
 
         else:

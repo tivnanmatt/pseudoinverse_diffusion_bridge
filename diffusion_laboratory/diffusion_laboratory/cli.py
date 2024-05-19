@@ -19,6 +19,7 @@ def main():
     parser.add_argument('--batches_per_epoch', type=int, default=100, help='The number of batches per epoch to use for training.')
     parser.add_argument('--num_iterations', type=int, default=1000, help='The number of iterations to run.')
     parser.add_argument('--num_reverse_steps', type=int, default=100, help='The number of reverse steps to use for sampling.')
+    parser.add_argument('--animation_frames_downsample', type=int, default=1, help='Number of reverse steps per animation frame.')
     parser.add_argument('--train', action='store_true', help='Whether to train the model.')
     parser.add_argument('--no-train', dest='train', action='store_false', help='Whether to not train the model.')
     parser.add_argument('--sample', action='store_true', help='Whether to sample from the model.')
@@ -44,6 +45,7 @@ def main():
         batches_per_epoch=args.batches_per_epoch,
         num_iterations=args.num_iterations,
         num_reverse_steps=args.num_reverse_steps,
+        animation_frames_downsample=args.animation_frames_downsample,
         load=args.load,
         train=args.train,
         sample=args.sample,

@@ -66,6 +66,9 @@ class MICRONS_Dataset(torch.utils.data.Dataset):
             iCol = torch.randint(0, 256, (1,))
             _X[i] = X[i,:,iRow:iRow+256,iCol:iCol+256]
         X = _X
+
+        # rescale 
+        X = (X - 98) / 60
         return X
     
 

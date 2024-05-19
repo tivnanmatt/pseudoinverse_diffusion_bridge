@@ -64,7 +64,7 @@ def sample_model(config):
 
     ax = fig.add_subplot(3, 3, 3)
     ax.set_title(f'{config.diffusion_model} Sample')
-    im13 = ax.imshow(prep_for_imshow(z_t[0, 0], imaging_modality), cmap='gray', vmin=vmin, vmax=vmax)
+    im13 = ax.imshow(prep_for_imshow(z_t[-1, 0], imaging_modality), cmap='gray', vmin=vmin, vmax=vmax)
     fig.colorbar(im13, ax=ax)
     ax.set_xticks([]); ax.set_yticks([])
 
@@ -82,7 +82,7 @@ def sample_model(config):
 
     ax = fig.add_subplot(3, 3, 6)
     ax.set_title(f'{config.diffusion_model} Sample (Range Space)')
-    im23 = ax.imshow(prep_for_imshow(z_t[0, 0], imaging_modality), cmap='gray', vmin=vmin, vmax=vmax)
+    im23 = ax.imshow(prep_for_imshow(z_t[-1, 0], imaging_modality), cmap='gray', vmin=vmin, vmax=vmax)
     fig.colorbar(im23, ax=ax)
     ax.set_xticks([]); ax.set_yticks([])
 
@@ -106,7 +106,7 @@ def sample_model(config):
 
     ax = fig.add_subplot(3, 3, 9)
     ax.set_title(f'{config.diffusion_model} Sample (Null Space)')
-    null_space_image = z_t[0, 0] - projection_to_range_space(z_t[0])[0]
+    null_space_image = z_t[-1, 0] - projection_to_range_space(z_t[-1])[0]
     if imaging_modality == 'PHOTO':
         null_space_image += 0.5
     im33 = ax.imshow(prep_for_imshow(null_space_image, imaging_modality), cmap='gray', vmin=vmin_null, vmax=vmax_null)
@@ -116,10 +116,17 @@ def sample_model(config):
     plt.savefig(figure_path)
 
     def animate(i):
-        print(f'Animating Frame: {i}')
-        im13.set_data(prep_for_imshow(z_t[i, 0], imaging_modality))
+        
+        if i == (z_t.shape[0]//config.animation_frames_downsample - 1):
+            ind = z_t.shape[0] - 1
+        else:
+            ind = i*config.animation_frames_downsample
+
+        print(f'Animating Frame: {ind}')
+
+        im13.set_data(prep_for_imshow(z_t[ind, 0], imaging_modality))
         ax.set_title(f'{config.diffusion_model} Sample, Time: {i}')
-        _range_space = projection_to_range_space(z_t[i])[0]
+        _range_space = projection_to_range_space(z_t[ind])[0]
         im23.set_data(prep_for_imshow(_range_space, imaging_modality))
         ax.set_title(f'{config.diffusion_model} Sample (Range Space), Time: {i}')
         _null_space = z_t[i, 0] - _range_space
@@ -129,7 +136,8 @@ def sample_model(config):
         ax.set_title(f'{config.diffusion_model} Sample (Null Space), Time: {i}')
         return im33,
 
-    ani = animation.FuncAnimation(fig, animate, frames=z_t.shape[0], interval=100)
+
+    ani = animation.FuncAnimation(fig, animate, frames=z_t.shape[0]//config.animation_frames_downsample, interval=100)
     writer = animation.writers['ffmpeg'](fps=15)
     ani.save(animation_path, writer=writer)
 
