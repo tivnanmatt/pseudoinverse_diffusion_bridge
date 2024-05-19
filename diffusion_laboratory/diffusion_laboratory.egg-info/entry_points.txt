@@ -1,0 +1,2 @@
+[console_scripts]
+diffusion_laboratory = diffusion_laboratory.cli:main
