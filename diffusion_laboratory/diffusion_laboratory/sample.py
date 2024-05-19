@@ -62,11 +62,11 @@ def sample_model(config):
     fig.colorbar(im12, ax=ax)
     ax.set_xticks([]); ax.set_yticks([])
 
-    ax = fig.add_subplot(3, 3, 3)
-    ax.set_title(f'{config.diffusion_model} Sample')
-    im13 = ax.imshow(prep_for_imshow(z_t[-1, 0], imaging_modality), cmap='gray', vmin=vmin, vmax=vmax)
-    fig.colorbar(im13, ax=ax)
-    ax.set_xticks([]); ax.set_yticks([])
+    ax1 = fig.add_subplot(3, 3, 3)
+    ax1.set_title(f'{config.diffusion_model} Sample')
+    im13 = ax1.imshow(prep_for_imshow(z_t[-1, 0], imaging_modality), cmap='gray', vmin=vmin, vmax=vmax)
+    fig.colorbar(im13, ax=ax1)
+    ax1.set_xticks([]); ax1.set_yticks([])
 
     ax = fig.add_subplot(3, 3, 4)
     ax.set_title('True Image (Range Space)')
@@ -80,11 +80,11 @@ def sample_model(config):
     fig.colorbar(im22, ax=ax)
     ax.set_xticks([]); ax.set_yticks([])
 
-    ax = fig.add_subplot(3, 3, 6)
-    ax.set_title(f'{config.diffusion_model} Sample (Range Space)')
-    im23 = ax.imshow(prep_for_imshow(z_t[-1, 0], imaging_modality), cmap='gray', vmin=vmin, vmax=vmax)
-    fig.colorbar(im23, ax=ax)
-    ax.set_xticks([]); ax.set_yticks([])
+    ax2 = fig.add_subplot(3, 3, 6)
+    ax2.set_title(f'{config.diffusion_model} Sample (Range Space)')
+    im23 = ax2.imshow(prep_for_imshow(z_t[-1, 0], imaging_modality), cmap='gray', vmin=vmin, vmax=vmax)
+    fig.colorbar(im23, ax=ax2)
+    ax2.set_xticks([]); ax2.set_yticks([])
 
     ax = fig.add_subplot(3, 3, 7)
     ax.set_title('True Image (Null Space)')
@@ -104,14 +104,14 @@ def sample_model(config):
     fig.colorbar(im32, ax=ax)
     ax.set_xticks([]); ax.set_yticks([])
 
-    ax = fig.add_subplot(3, 3, 9)
-    ax.set_title(f'{config.diffusion_model} Sample (Null Space)')
+    ax3 = fig.add_subplot(3, 3, 9)
+    ax3.set_title(f'{config.diffusion_model} Sample (Null Space)')
     null_space_image = z_t[-1, 0] - projection_to_range_space(z_t[-1])[0]
     if imaging_modality == 'PHOTO':
         null_space_image += 0.5
-    im33 = ax.imshow(prep_for_imshow(null_space_image, imaging_modality), cmap='gray', vmin=vmin_null, vmax=vmax_null)
-    fig.colorbar(im33, ax=ax)
-    ax.set_xticks([]); ax.set_yticks([])
+    im33 = ax3.imshow(prep_for_imshow(null_space_image, imaging_modality), cmap='gray', vmin=vmin_null, vmax=vmax_null)
+    fig.colorbar(im33, ax=ax3)
+    ax3.set_xticks([]); ax3.set_yticks([])
 
     plt.savefig(figure_path)
 
@@ -125,15 +125,15 @@ def sample_model(config):
         print(f'Animating Frame: {ind}')
 
         im13.set_data(prep_for_imshow(z_t[ind, 0], imaging_modality))
-        ax.set_title(f'{config.diffusion_model} Sample, Time: {i}')
+        ax1.set_title(f'{config.diffusion_model} Sample, Time: {ind}')
         _range_space = projection_to_range_space(z_t[ind])[0]
         im23.set_data(prep_for_imshow(_range_space, imaging_modality))
-        ax.set_title(f'{config.diffusion_model} Sample (Range Space), Time: {i}')
-        _null_space = z_t[i, 0] - _range_space
+        # ax.set_title(f'{config.diffusion_model} Sample (Range Space), Time: {i}')
+        _null_space = z_t[ind, 0] - _range_space
         if imaging_modality == 'PHOTO':
             _null_space += 0.5
         im33.set_data(prep_for_imshow(_null_space, imaging_modality))
-        ax.set_title(f'{config.diffusion_model} Sample (Null Space), Time: {i}')
+        # ax.set_title(f'{config.diffusion_model} Sample (Null Space), Time: {i}')
         return im33,
 
 
@@ -144,32 +144,33 @@ def sample_model(config):
     # Save linear array showing the reverse diffusion process
     n_steps = 6
     step_indices = np.linspace(0, z_t.shape[0] - 1, n_steps - 1, dtype=int)
+    step_indices[-1] = -1
     fig, axes = plt.subplots(3, n_steps, figsize=(12, 6), gridspec_kw={'wspace': 0.03, 'hspace': 0.03})
     for j, idx in enumerate(step_indices):
-        axes[0, j].imshow(prep_for_imshow(z_t[idx, 0], imaging_modality), cmap='gray', vmin=vmin, vmax=vmax)
-        axes[0, j].set_xticks([]); axes[0, j].set_yticks([])
+        axes[0, j+1].imshow(prep_for_imshow(z_t[idx, 0], imaging_modality), cmap='gray', vmin=vmin, vmax=vmax)
+        axes[0, j+1].set_xticks([]); axes[0, j+1].set_yticks([])
 
         range_space = projection_to_range_space(z_t[idx])[0]
-        axes[1, j].imshow(prep_for_imshow(range_space, imaging_modality), cmap='gray', vmin=vmin, vmax=vmax)
-        axes[1, j].set_xticks([]); axes[1, j].set_yticks([])
+        axes[1, j+1].imshow(prep_for_imshow(range_space, imaging_modality), cmap='gray', vmin=vmin, vmax=vmax)
+        axes[1, j+1].set_xticks([]); axes[1, j+1].set_yticks([])
 
         null_space = z_t[idx, 0] - range_space
         if imaging_modality == 'PHOTO':
             null_space += 0.5
-        axes[2, j].imshow(prep_for_imshow(null_space, imaging_modality), cmap='gray', vmin=vmin_null, vmax=vmax_null)
-        axes[2, j].set_xticks([]); axes[2, j].set_yticks([])
+        axes[2, j+1].imshow(prep_for_imshow(null_space, imaging_modality), cmap='gray', vmin=vmin_null, vmax=vmax_null)
+        axes[2, j+1].set_xticks([]); axes[2, j+1].set_yticks([])
 
-    axes[0, -1].imshow(prep_for_imshow(X[0], imaging_modality), cmap='gray', vmin=vmin, vmax=vmax)
-    axes[0, -1].set_xticks([]); axes[0, -1].set_yticks([])
+    axes[0, 0].imshow(prep_for_imshow(X[0], imaging_modality), cmap='gray', vmin=vmin, vmax=vmax)
+    axes[0, 0].set_xticks([]); axes[0, 0].set_yticks([])
 
-    axes[1, -1].imshow(prep_for_imshow(X_RangeSpace[0], imaging_modality), cmap='gray', vmin=vmin, vmax=vmax)
-    axes[1, -1].set_xticks([]); axes[1, -1].set_yticks([])
+    axes[1, 0].imshow(prep_for_imshow(X_RangeSpace[0], imaging_modality), cmap='gray', vmin=vmin, vmax=vmax)
+    axes[1, 0].set_xticks([]); axes[1, 0].set_yticks([])
 
     null_space_image = X[0] - X_RangeSpace[0]
     if imaging_modality == 'PHOTO':
         null_space_image += 0.5
-    axes[2, -1].imshow(prep_for_imshow(null_space_image, imaging_modality), cmap='gray', vmin=vmin_null, vmax=vmax_null)
-    axes[2, -1].set_xticks([]); axes[2, -1].set_yticks([])
+    axes[2, 0].imshow(prep_for_imshow(null_space_image, imaging_modality), cmap='gray', vmin=vmin_null, vmax=vmax_null)
+    axes[2, 0].set_xticks([]); axes[2, 0].set_yticks([])
 
     plt.savefig(reverse_diffusion_path, dpi=300)
 

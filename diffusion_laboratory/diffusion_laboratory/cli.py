@@ -25,6 +25,7 @@ def main():
     parser.add_argument('--sample', action='store_true', help='Whether to sample from the model.')
     parser.add_argument('--no-sample', dest='sample', action='store_false', help='Whether to not sample from the model.')
     parser.add_argument('--load', action='store_true', help='Whether to load the model.')
+    parser.add_argument('--no-load', dest='load', action='store_false', help='Whether to not load the model.')
 
 
     parser.set_defaults(train=False, sample=False, load=True)

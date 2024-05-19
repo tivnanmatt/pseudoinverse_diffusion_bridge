@@ -26,8 +26,10 @@ from .measurement_models import (
 )
 
 from .diffusion_models import (
-    PseudoInverseDiffusionModel, 
-    NullspaceDiffusionModel
+    PseudoinverseDiffusionBridgeModel,
+    ImageToImageSchrodingerBridgeModel,
+    NullspaceDiffusionModel,
+    ConditionalDiffusionModel
 )
 
 from .networks import DiffusersUnet
@@ -39,7 +41,20 @@ ANIMATIONS_DIR = os.path.join(PROJECT_ROOT, 'animations')
 DATA_DIR = os.path.join(PROJECT_ROOT, '../../../data/')
 
 class Config:
-    def __init__(self, device, diffusion_model, imaging_modality, batch_size, num_epochs, learning_rate, warmup_steps, batches_per_epoch, num_iterations, num_reverse_steps, animation_frames_downsample, load, train, sample):
+    def __init__(self, device,
+                 diffusion_model,
+                 imaging_modality,
+                 batch_size,
+                 num_epochs,
+                 learning_rate,
+                 warmup_steps,
+                 batches_per_epoch,
+                 num_iterations,
+                 num_reverse_steps,
+                 animation_frames_downsample,
+                 load,
+                 train,
+                 sample):
         self.device = device
         self.diffusion_model = diffusion_model
         self.imaging_modality = imaging_modality
@@ -55,7 +70,7 @@ class Config:
         self.train = train
         self.sample = sample
         self.setup_imaging_modality()
-        self.setup_diffusion_model()
+        self.setup_network()
 
     def setup_imaging_modality(self):
         if self.imaging_modality == 'MRI':
@@ -64,16 +79,16 @@ class Config:
             mask_rfft2 = self.mean_response.mask_rfft2.repeat(1, 1, 256, 1)
             mask = torch.fft.irfft2(mask_rfft2, norm='ortho')
             mask = mask.permute(0, 1, 3, 2)
-            noise_kernel = 0.3*0.3*mask
+            noise_kernel = 0.3 * 0.3 * mask
             self.noise_covariance = StationaryNoiseCovariance(noise_kernel, kernel=True)
             self.weights_path = os.path.join(WEIGHTS_DIR, f'{self.diffusion_model}_MRI.pth')
             self.figure_path = os.path.join(FIGURES_DIR, f'{self.diffusion_model}_MRI.png')
             self.animation_path = os.path.join(ANIMATIONS_DIR, f'{self.diffusion_model}_MRI.mp4')
             self.reverse_diffusion_path = os.path.join(FIGURES_DIR, f'reverse_diffusion_process_{self.diffusion_model}_MRI.png')
-            self.vmin, self.vmax = 0, 0.8  
-            self.vmin_null, self.vmax_null = -0.4, 0.4  
+            self.vmin, self.vmax = 0, 0.8
+            self.vmin_null, self.vmax_null = -0.4, 0.4
             self.dataset_max_train = 200 * 37
-            self.null_space_variance = 2 
+            self.null_space_variance = 2
 
         elif self.imaging_modality == 'PET':
             self.dataset = ADNIPETSlice_Dataset(os.path.join(DATA_DIR, 'ADNI/ADNI/'), verbose=True)
@@ -104,27 +119,27 @@ class Config:
         elif self.imaging_modality == 'CT':
             self.dataset = SynthRad2023Task1CTSlice_Dataset(os.path.join(DATA_DIR, 'SynthRad2023/Task1/brain/'), verbose=True)
             self.dataset_max_train = 200 * 37
-            U = torch.tensor(np.load(os.path.join(WEIGHTS_DIR, 'U.npy')), dtype=torch.float32) / 1000  # Rescale by 1000
-            S = torch.tensor(np.load(os.path.join(WEIGHTS_DIR, 'S.npy')), dtype=torch.float32) / 1000  # Rescale by 1000
-            V = torch.tensor(np.load(os.path.join(WEIGHTS_DIR, 'V.npy')), dtype=torch.float32) / 1000  # Rescale by 1000
+            U = torch.tensor(np.load(os.path.join(WEIGHTS_DIR, 'U.npy')), dtype=torch.float32)
+            S = torch.tensor(np.load(os.path.join(WEIGHTS_DIR, 'S.npy')), dtype=torch.float32)
+            V = torch.tensor(np.load(os.path.join(WEIGHTS_DIR, 'V.npy')), dtype=torch.float32)
             xShape = [1, 256, 256]
             yShape = [72, 375]
             self.mean_response = DenseSVDMeanSystemResponse(U, S, V, xShape, yShape)
-            self.noise_covariance = ScalarNoiseCovariance(50000 / 1000**2)  # Rescale by 1000^2
-            self.null_space_variance = 0.3*0.3  # Rescale by 1000^2
+            self.noise_covariance = ScalarNoiseCovariance(0.2 * 0.2)
+            self.null_space_variance = 0.3 * 0.3
             self.weights_path = os.path.join(WEIGHTS_DIR, f'{self.diffusion_model}_CT.pth')
             self.figure_path = os.path.join(FIGURES_DIR, f'{self.diffusion_model}_CT.png')
             self.animation_path = os.path.join(ANIMATIONS_DIR, f'{self.diffusion_model}_CT.mp4')
             self.reverse_diffusion_path = os.path.join(FIGURES_DIR, f'reverse_diffusion_process_{self.diffusion_model}_CT.png')
-            self.vmin, self.vmax = -0.03, 0.09  # Rescale by 1000
-            self.vmin_null, self.vmax_null = -0.03, 0.09  # Rescale by 1000
+            self.vmin, self.vmax = -0.03, 0.09
+            self.vmin_null, self.vmax_null = -0.03, 0.09
 
         elif self.imaging_modality == 'SEM':
             self.dataset = SEM_Dataset(os.path.join(DATA_DIR, 'MICRONS'), verbose=True)
             self.dataset_max_train = 1000 * 20
             self.mean_response = IdentityMeanSystemResponse()
-            self.noise_covariance = ScalarNoiseCovariance(500 / 10**2)  # Rescale by 10^2
-            self.null_space_variance = 10000.0 / 10**2  # Rescale by 10^2
+            self.noise_covariance = ScalarNoiseCovariance(0.1)
+            self.null_space_variance = 0.0
             self.weights_path = os.path.join(WEIGHTS_DIR, f'{self.diffusion_model}_SEM.pth')
             self.figure_path = os.path.join(FIGURES_DIR, f'{self.diffusion_model}_SEM.png')
             self.animation_path = os.path.join(ANIMATIONS_DIR, f'{self.diffusion_model}_SEM.mp4')
@@ -137,20 +152,32 @@ class Config:
 
         self.measurement_likelihood = LinearSystemPlusGaussianNoise(self.mean_response, self.noise_covariance).to(self.device)
 
-    def setup_diffusion_model(self):
-        if self.diffusion_model not in ['PDB', 'NDM']:
-            raise ValueError("Invalid diffusion model. Choose 'PDB' or 'NDM'.")
+    def setup_network(self):
+        if self.diffusion_model not in ['PDB', 'NDM', 'I2SB', 'CDM']:
+            raise ValueError("Invalid diffusion model. Choose 'PDB', 'NDM', 'I2SB', or 'CDM'.")
 
-        if self.imaging_modality == 'PHOTO':
-            self.denoiser_network = DiffusersUnet(input_channels=3, unet_out_channels=3)
+        
+        if self.diffusion_model == 'CDM':
+            if self.imaging_modality == 'PHOTO':
+                self.denoiser_network = DiffusersUnet(input_channels=3, unet_out_channels=3, conditional_channels=3)
+            else:
+                self.denoiser_network = DiffusersUnet(conditional_channels=1)
+
         else:
-            self.denoiser_network = DiffusersUnet()
+            if self.imaging_modality == 'PHOTO':
+                self.denoiser_network = DiffusersUnet(input_channels=3, unet_out_channels=3)
+            else:
+                self.denoiser_network = DiffusersUnet()
 
         if self.diffusion_model == 'PDB':
-            self.diffusion_model_instance = PseudoInverseDiffusionModel(self.measurement_likelihood, self.denoiser_network, null_space_variance=self.null_space_variance)
+            self.diffusion_model_instance = PseudoinverseDiffusionBridgeModel(self.measurement_likelihood, self.denoiser_network, null_space_variance=self.null_space_variance)
         elif self.diffusion_model == 'NDM':
             self.diffusion_model_instance = NullspaceDiffusionModel(self.measurement_likelihood, self.denoiser_network, null_space_variance=self.null_space_variance)
-
+        elif self.diffusion_model == 'I2SB':
+            self.diffusion_model_instance = ImageToImageSchrodingerBridgeModel(self.measurement_likelihood, self.denoiser_network, i2sb_variance=self.null_space_variance/16)
+        elif self.diffusion_model == 'CDM':
+            self.diffusion_model_instance = ConditionalDiffusionModel(self.measurement_likelihood, self.denoiser_network, sigma_max=np.sqrt(self.null_space_variance)*2)
+        
         self.diffusion_model_instance.to(self.device)
 
         if self.load:

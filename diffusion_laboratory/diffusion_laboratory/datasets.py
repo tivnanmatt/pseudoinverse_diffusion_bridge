@@ -128,7 +128,7 @@ class BrainPatchDataset(torch.utils.data.Dataset):
     def _load_brain_patches(self, ind):
 
         #seed with ind
-        np.random.seed(ind)
+        # np.random.seed(ind)
         _ind = np.random.randint(0, len(self.brain_list))
 
         # load in the brain
@@ -247,6 +247,9 @@ class SynthRad2023Task1CTSlice_Dataset(torch.utils.data.Dataset):
         # channel dimension
         brain_ct_slices = brain_ct_slices.unsqueeze(1)
 
+        # rescale
+        brain_ct_slices = (brain_ct_slices) / 1000
+
         return brain_ct_slices
     
 
@@ -261,7 +264,7 @@ class SynthRad2023Task1MRISlice_Dataset(torch.utils.data.Dataset):
         # remove the element of self.brain_list that is 'overview'
         brain_list.remove('overview')
         # Split the list into training and testing
-        np.random.seed(2023)
+        # np.random.seed(2023)
         np.random.shuffle(brain_list)  # Shuffle the list 
         self.verbose = verbose
         self.brain_list = brain_list
@@ -330,6 +333,9 @@ class SynthRad2023Task1MRISlice_Dataset(torch.utils.data.Dataset):
             
         brain_mri_slices = torch.tensor(brain_mri_slices, dtype=torch.float32)
         brain_mri_slices.unsqueeze_(1)
+
+        # rescale
+        brain_mri_slices = brain_mri_slices / 500
 
         return brain_mri_slices
 

@@ -22,6 +22,19 @@ def train_model(config):
     data_tensor = dataset[ind:ind + batch_size * batches_per_epoch].to(device)
     tensor_dataset = torch.utils.data.TensorDataset(data_tensor)
 
+    if config.imaging_modality == 'CT':
+        def loss_fn(z_0, z_0_hat, t):
+            residual = z_0 - z_0_hat
+            residual = residual/torch.sqrt(t.unsqueeze(-1).unsqueeze(-1))
+            idx = torch.logical_and(z_0 > -0.05, z_0 < 0.05)
+            residual[idx] = 10*residual[idx]
+            return torch.mean(residual**2)
+    else:
+        def loss_fn(z_0, z_0_hat, t):
+            residual = z_0 - z_0_hat
+            residual = residual/torch.sqrt(t.unsqueeze(-1).unsqueeze(-1))
+            return torch.mean(residual**2)
+
     # Train the model
     diffusion_model.train(
         tensor_dataset, 
@@ -29,9 +42,11 @@ def train_model(config):
         num_epochs=num_epochs, 
         learning_rate=learning_rate, 
         warmup_steps=warmup_steps, 
-        batches_per_epoch=batches_per_epoch
+        batches_per_epoch=batches_per_epoch,
+        loss_fn=loss_fn
     )
 
     # Save a backup of the weights
-    shutil.copyfile(weights_path, weights_path.replace('.pth', f'_backup.pth'))
     torch.save(diffusion_model.denoiser_network.state_dict(), weights_path)
+    # Copy the weights to a backup file to avoid issues when killing the training
+    shutil.copyfile(weights_path, weights_path.replace('.pth', f'_backup.pth'))
